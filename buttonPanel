@@ -1,0 +1,267 @@
+#include "pitches.h"
+int omhoog = 5;
+int omlaag = 3;
+int bevestig = 4;
+int alarm = 2;
+int piezo = 6;
+
+//////States
+int omhoogState = 0;
+int omlaagState = 0;
+int bevestigState = 0;
+int alarmState = 0;
+//////////led controller/floor controller
+int firstLed = 22;
+int secondLed = 23;
+int thirdLed = 24;
+int fourthLed = 25;
+int fifthLed = 26;
+int sixthLed = 27;
+int seventhLed = 28;
+int eighthLed = 29;
+int ninethLed = 30;
+int tenthLed = 31;
+int booleanCounter= 0;
+boolean firstBoolean,secondBoolean,thirdBoolean,fourthBoolean,fifthBoolean,sixthBoolean,seventhBoolean,eighthBoolean,ninethBoolean,tenthBoolean;
+long previous = 0;
+int ledCounter = 0;
+int ledControl[] = {firstLed,secondLed,thirdLed,fourthLed,fifthLed,sixthLed,seventhLed,eighthLed,ninethLed,tenthLed};
+boolean ledBoolean[] = {firstBoolean,secondBoolean,thirdBoolean,fourthBoolean,fifthBoolean,sixthBoolean,seventhBoolean,eighthBoolean,ninethBoolean,tenthBoolean};
+/////////////////////Elevator music/panic button
+int melody[] = {  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4};
+int noteDurations[] = {  4, 8, 8, 4, 4, 4, 4, 4};
+//////////////////Shift register (not used)
+//In Bits Floor 0 = 63, F1 = 6, F2 = 91, F3 = 79, F4= 102 etc etc...
+//Bits = 1(segment a), 2(segment b), 4 (segment c), 8 (d), 16 (e) , 32 (f) ,64(g), 128(DP)
+//int floors[] = {63,6,91,79,102,109,125,7,127,103}; 
+///////////Floor simulation engine
+int floorValue = 5;
+int steps = 0;
+boolean  Direction=true;   /// true is omhoog, false is omlaag 
+int northMagnet = 11;
+int westMagnet = 10;
+int southMagnet = 9;
+int eastMagnet = 8;
+
+
+void setup() {
+  pinMode(omhoog, INPUT);
+  pinMode(omlaag, INPUT);
+  pinMode(bevestig, INPUT);
+  pinMode(alarm, INPUT);
+  pinMode(piezo, OUTPUT);
+  pinMode(firstLed,OUTPUT);
+  pinMode(secondLed,OUTPUT);
+  pinMode(thirdLed,OUTPUT);
+  pinMode(fourthLed,OUTPUT);
+  pinMode(fifthLed,OUTPUT);
+  pinMode(sixthLed,OUTPUT);
+  pinMode(seventhLed,OUTPUT);
+  pinMode(eighthLed,OUTPUT);
+  pinMode(ninethLed,OUTPUT);
+  pinMode(northMagnet,OUTPUT);
+  pinMode(westMagnet,OUTPUT);
+  pinMode(southMagnet,OUTPUT);
+  pinMode(eastMagnet,OUTPUT);
+
+  // put your setup code here, to run once:
+Serial.begin(9600);
+}
+
+void loop() {
+  omhoogState = digitalRead(omhoog);
+  omlaagState = digitalRead(omlaag);
+  bevestigState = digitalRead(bevestig);
+  alarmState = digitalRead(alarm);
+
+  if(omhoogState == HIGH)
+  {
+    Serial.println("Up");
+   if(ledBoolean[booleanCounter] == true)
+      {
+         digitalWrite(ledControl[ledCounter],HIGH);
+         ledCounter++;
+         booleanCounter++;
+         digitalWrite(ledControl[ledCounter],HIGH);
+      }
+  else if(ledCounter>= 9)
+    {
+      digitalWrite(ledControl[ledCounter],LOW);
+      ledCounter = 0;
+      booleanCounter = 0;
+      digitalWrite(ledControl[ledCounter],HIGH);
+    }
+    
+  else
+  {
+    digitalWrite(ledControl[ledCounter],LOW);
+    ledCounter++;
+   booleanCounter++;
+   digitalWrite(ledControl[ledCounter],HIGH);
+    Direction = 1;
+  }
+   buttonDelay();
+  }
+  else if(omlaagState == HIGH)
+  {
+    Serial.println("Down");
+    
+      if(ledBoolean[booleanCounter] == true)
+      {
+         digitalWrite(ledControl[ledCounter],HIGH);
+         ledCounter--;
+         booleanCounter--;
+         digitalWrite(ledControl[ledCounter],HIGH);
+      }
+    else if(ledCounter <= 0)
+      {
+       digitalWrite(ledControl[ledCounter],LOW);
+        ledCounter = 9;
+        booleanCounter = 9;
+         digitalWrite(ledControl[ledCounter],HIGH);
+      }
+   
+     else
+     {
+       digitalWrite(ledControl[ledCounter],LOW);
+      ledCounter--;
+      booleanCounter--;
+       digitalWrite(ledControl[ledCounter],HIGH);
+      Direction = 0;
+   
+     }
+   buttonDelay();
+  }
+    if(bevestigState == HIGH && ledBoolean[booleanCounter] == false)
+  {
+
+     Serial.println("Enable led");
+     ledBoolean[booleanCounter] = true;
+     digitalWrite(ledControl[ledCounter],HIGH);
+     buttonDelay();  
+  }
+    else if(bevestigState == HIGH && ledBoolean[booleanCounter] == true)
+  {
+
+     Serial.println("Disable led");
+     ledBoolean[booleanCounter] = false;
+     digitalWrite(ledControl[ledCounter],LOW);
+     buttonDelay();  
+  }
+  else if(alarmState == HIGH)
+  {
+     Serial.println("Alarm");
+  
+    // iterate over the notes of the melody:
+    for (int thisNote = 0; thisNote < 8; thisNote++) {
+  
+    // to calculate the note duration, take one second divided by the note type.
+    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    int noteDuration = 1000 / noteDurations[thisNote];
+    tone(6, melody[thisNote], noteDuration);
+      
+    // to distinguish the notes, set a minimum time between them.
+    // the note's duration + 30% seems to work well:
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    // stop the tone playing:
+    noTone(6);
+    }
+    buttonDelay();
+  }
+  else
+  {
+    stepper();
+    SetDirection();
+    minusDelay();
+  }
+}
+
+int minusDelay()
+{
+  previous = millis();
+  while(millis()-previous <= 1){};
+}
+
+int buttonDelay()
+  {
+  previous = millis();
+  while(millis()-previous <= 300){};
+  }
+
+  void SetDirection(){
+
+    if(Direction ==1)
+    { steps++;}
+    if(Direction ==0)
+    { steps--; }
+    if(steps>7)
+    {steps=0;}
+    if(steps<0)
+    {steps=7; }
+    }
+
+void stepper()
+{ 
+  switch(steps)
+  { 
+   case 0: 
+     digitalWrite(northMagnet, LOW);  
+     digitalWrite(westMagnet, LOW); 
+     digitalWrite(southMagnet, LOW); 
+     digitalWrite(eastMagnet, HIGH); 
+   break;  
+   case 1: 
+     digitalWrite(northMagnet, LOW);  
+     digitalWrite(westMagnet, LOW); 
+     digitalWrite(southMagnet, HIGH); 
+     digitalWrite(eastMagnet, HIGH); 
+   break;  
+   case 2: 
+     digitalWrite(northMagnet, LOW);  
+     digitalWrite(westMagnet, LOW); 
+     digitalWrite(southMagnet, HIGH); 
+     digitalWrite(eastMagnet, LOW); 
+   break;  
+   case 3: 
+     digitalWrite(northMagnet, LOW);  
+     digitalWrite(westMagnet, HIGH); 
+     digitalWrite(southMagnet, HIGH); 
+     digitalWrite(eastMagnet, LOW); 
+   break;  
+   case 4: 
+     digitalWrite(northMagnet, LOW);  
+     digitalWrite(westMagnet, HIGH); 
+     digitalWrite(southMagnet, LOW); 
+     digitalWrite(eastMagnet, LOW); 
+   break;  
+   case 5: 
+     digitalWrite(northMagnet, HIGH);  
+     digitalWrite(westMagnet, HIGH); 
+     digitalWrite(southMagnet, LOW); 
+     digitalWrite(eastMagnet, LOW); 
+   break;  
+     case 6: 
+     digitalWrite(northMagnet, HIGH);  
+     digitalWrite(westMagnet, LOW); 
+     digitalWrite(southMagnet, LOW); 
+     digitalWrite(eastMagnet, LOW); 
+   break;  
+   case 7: 
+     digitalWrite(northMagnet, HIGH);  
+     digitalWrite(westMagnet, LOW); 
+     digitalWrite(southMagnet, LOW); 
+     digitalWrite(eastMagnet, HIGH); 
+   break;  
+   default: 
+     digitalWrite(northMagnet, LOW);  
+     digitalWrite(westMagnet, LOW); 
+     digitalWrite(southMagnet, LOW); 
+     digitalWrite(eastMagnet, LOW); 
+   break;  
+  }
+  
+ }  
+
+ 
+
