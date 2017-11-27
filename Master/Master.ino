@@ -1,25 +1,14 @@
-// Wire Master Writer
-// by Nicholas Zambetti <http://www.zambetti.com>
-//COM3
-// Demonstrates use of the Wire library
-// Writes data to an I2C/TWI slave device
-// Refer to the "Wire Slave Receiver" example for use with this
-
-// Created 29 March 2006
-
-// This example code is in the public domain.
-
-
 #include <Wire.h>
 
 int testButton = 13;
 int buttonState =0;
 boolean set = false;
-int a = 8;
+int currentSlaveAdress = 8;
 byte x = 0;
-byte y = 0;
 long previous;
-
+const int amountSlaves = 2; //Change this to apply multiple slaves connection
+int slaveCounter = 1;
+int floorChecking[amountSlaves];
 
 void setup() 
 {
@@ -44,54 +33,66 @@ else if(buttonState ==HIGH && set == false)
   Serial.println("send");
   minusDelay();
 }
-if(set == true)
+else
 {
+checkingConnection();
+connectionDelay();  
+}
+  
+  minusDelay();  
+}
+
+void checkingConnection()
+  {
+    if(set == true)
+    {
   Serial.println("True");
-  Wire.beginTransmission(a); // transmit to device #8
+  Wire.beginTransmission(currentSlaveAdress); // transmit to device #8
   Wire.write("x is ");        // sends five bytes
   Wire.write(x);              // sends one byte
   Wire.endTransmission();    // stop transmitting
   x++;
-  minusDelay();
-}
+  connectionDelay();
+    }
 else if(set == false)
-{
-  Wire.requestFrom(a, 1);    // request 6 bytes from slave device #8
+    {
+  Wire.requestFrom(currentSlaveAdress, 1);    // request 6 bytes from slave device #8
   while (Wire.available()) 
     { // slave may send less than requested
-  int c = Wire.read(); // receive a byte as character
+  int receivingByte = Wire.read(); // receive a byte as character
   
-  Serial.println(c);         // print the character
-  Serial.println("false");
-  if(c == 1)
+  Serial.println(receivingByte);         // print the character
+  Serial.println("recieving from slave");
+   if(slaveCounter == amountSlaves )
+    {
+       currentSlaveAdress = 8;
+       slaveCounter = 1;
+       connectionDelay();
+    }
+  else if(receivingByte > 0)
   {
-    Serial.println("Hello from the other side");
-    a = a+1;
-    minusDelay();
+    currentSlaveAdress = currentSlaveAdress+ 1;
+    slaveCounter = slaveCounter + 1;
+    connectionDelay();
   }
-   else if(c == 2)
-  {
-    a = a -1;
-    Serial.println("Hello from the other 2nd side");
-    minusDelay();
-  }
+
   else
-  {
-    minusDelay();
+       {
+          connectionDelay();
+        }
+     }
+    }
   }
-   }
-  }
-else
-{
-Serial.println("waiting");
-minusDelay();  
-}
-  
-}
 
 int minusDelay()
 {
   previous = millis();
   while(millis()-previous <= 500){};
+}
+
+int connectionDelay()
+{ 
+  previous = millis();
+  while(millis()-previous <= 100){};
 }
 
